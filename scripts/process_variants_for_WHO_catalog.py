@@ -8,7 +8,7 @@ import Bio.Data
 from Bio import Seq, SeqIO, Entrez
 
 # dataframe of all regions in H37Rv and their coordinates. Includes genes and non-coding regions
-h37Rv_full = pd.read_csv("./references/ref_genome/mycobrowser_h37rv_v4.csv")
+h37Rv_full = pd.read_csv("/home/sak0914/Mtb_Megapipe/references/ref_genome/mycobrowser_h37rv_v4.csv")
 
 ################################################################## NOTES ##################################################################
 
@@ -16,7 +16,7 @@ h37Rv_full = pd.read_csv("./references/ref_genome/mycobrowser_h37rv_v4.csv")
 # silent variants composed of MNVs are formatted like this in the catalog: katG_c.CTCinsGAT, whereas the combineCodons function outputs katG_c.CTC>GAT
 
 # this includes LoF variants -- i.e. Rv0678_LoF is significantly associated with Bedaquiline resistance, so all component LoF mutations (frameshift, stop gained, start lost) are Group 2) Assoc w R - Interim
-who_catalog_V2 = pd.read_csv("./references/WHO_catalog_resistance/V2_catalog.csv", header=[2])
+who_catalog_V2 = pd.read_csv("/home/sak0914/Mtb_Megapipe/references/WHO_catalog_resistance/V2_catalog.csv", header=[2])
 who_catalog_V2 = who_catalog_V2[['drug', 'variant', 'FINAL CONFIDENCE GRADING', 'Comment']].rename(columns={'FINAL CONFIDENCE GRADING': 'confidence'})
 
 parser = argparse.ArgumentParser()
@@ -180,6 +180,10 @@ def process_intragenic_variant_WHO_catalog_coord(row):
     # account for the alternative start codons. But in the catalog, they are all encoded as p.Met1? because the first amino acid in a protein is changed to Met after translation
     if 'start_lost' in effect:
         if 'p.Met1' in prot_change or 'p.Val1' in prot_change or 'p.Ile1' in prot_change or 'p.Leu1' in prot_change:
+            return gene + '_' + 'p.Met1?'
+        # edge case: if many amino acids at the start of the protein are affected by the start_lost mutation, then the snpEff annotation may be something like p.MetSerGly...1?
+        # so have to check if the annotation also starts with p.Met and ends with "1?"
+        elif (prot_change.startswith('p.Met') or prot_change.startswith('p.Val') or prot_change.startswith('p.Ile') or prot_change.startswith('p.Leu')) and prot_change.endswith('1?'):
             return gene + '_' + 'p.Met1?'
         else:
             # if it's a frameshift on the first codon that also causes loss of the start codon, the variant should be the frameshift
@@ -423,6 +427,23 @@ def get_variants_with_ablations(df):
     if len(df_ablation_add) > 0:
         df_ablation_add = pd.concat(df_ablation_add)
 
+    # replace the variant column with {gene}_LoF
+    df_ablation_add['variant'] = df_ablation_add['GENE'] + '_' + 'LoF'
+
+    # previously checked that for each (drug, gene) pair, if {gene}_LoF is R-associated, then all the component mutations have had their gradings updated, so using {gene}_LoF instead of the full variant name won't miss any resistance-associated variants
+    
+    # drug_genes_LoF = who_catalog_V2.query("effect=='LoF' & confidence != '3) Uncertain significance'")[['drug', 'gene']].reset_index(drop=True)
+    # for i, row in drug_genes_LoF.iterrows():
+    #     drug = row['drug']
+    #     gene = row['gene']
+    
+    #     lof_component_mutations = who_catalog_V2.query("drug==@drug & gene==@gene & effect in ['frameshift', 'start_lost', 'stop_gained', 'feature_ablation']")
+    #     # print(drug, gene, lof_component_mutations.confidence.unique())
+    #     assert lof_component_mutations.confidence.nunique() <= 2
+    #     assert '3) Uncertain significance' not in lof_component_mutations.confidence.values
+    #     assert '4) Not assoc w R - Interim' not in lof_component_mutations.confidence.values
+    #     assert '5) Not assoc w R' not in lof_component_mutations.confidence.values
+
     # don't return GENE_i or EFFECT_i. Won't know which column has the deleted gene and it's not worth getting, so these columns will be NaN in the annotated variants dataframe
     # but keep the primary columns. For ablations that affect multiple genes, each gene is a separate row (for the same variant) with the effect corresponding to that gene
     return pd.concat([df_ablation, df_ablation_add]).dropna(subset='variant').reset_index(drop=True)[['POS', 'REF', 'ALT', 'FILTER', 'QUAL', 'AF', 'DP', 'BQ', 'MQ', 'GENE', 'EFFECT', 'variant']]
@@ -440,7 +461,11 @@ def add_variant_column(df):
     df_add = []
     
     for i, row in df.iterrows():
-        
+
+        # some weird cases: when an amino acid indel occurs at the start of a gene, snpEff may annotate it in two different ways
+        # it will say that it's an intergenic variant between genes 1 and 2, but in HGVS P format, it's an indel or duplication extending the gene at the 
+        # actually only exclude specific edge cases from here when you see them. This one is gid-Rv3920c n.4408157_4408202dupGCCGCGGTCCGAAGATCGCAGACGCCGCGGGCTCGATCGGAGACAT
+        # this got fixed by left-aligning indels, never mind
         if '-' in row['GENE']:
             cleaned_mut = process_intergenic_variant_WHO_catalog_coord(row)
         else:

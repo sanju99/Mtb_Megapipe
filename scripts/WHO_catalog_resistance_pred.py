@@ -8,7 +8,7 @@ import Bio.Data
 from Bio import Seq, SeqIO, Entrez
 
 # dataframe of all regions in H37Rv and their coordinates. Includes genes and non-coding regions
-h37Rv_full = pd.read_csv("./references/ref_genome/mycobrowser_h37rv_v4.csv")
+h37Rv_full = pd.read_csv("/home/sak0914/Mtb_Megapipe/references/ref_genome/mycobrowser_h37rv_v4.csv")
 
 ################################################################## NOTES ##################################################################
 
@@ -16,7 +16,7 @@ h37Rv_full = pd.read_csv("./references/ref_genome/mycobrowser_h37rv_v4.csv")
 # silent variants composed of MNVs are formatted like this in the catalog: katG_c.CTCinsGAT, whereas the combineCodons function outputs katG_c.CTC>GAT
 
 # this includes LoF variants -- i.e. Rv0678_LoF is significantly associated with Bedaquiline resistance, so all component LoF mutations (frameshift, stop gained, start lost) are Group 2) Assoc w R - Interim
-who_catalog = pd.read_csv("./references/WHO_catalog_resistance/V2_catalog.csv", header=[2])
+who_catalog = pd.read_csv("/home/sak0914/Mtb_Megapipe/references/WHO_catalog_resistance/V2_catalog.csv", header=[2])
 who_catalog = who_catalog[['drug', 'variant', 'FINAL CONFIDENCE GRADING', 'Comment']].rename(columns={'FINAL CONFIDENCE GRADING': 'confidence'})
 
 parser = argparse.ArgumentParser()

@@ -3,13 +3,13 @@ import pandas as pd
 import os, vcf, sys, itertools, argparse
 from Bio import Entrez, Seq, SeqIO
 
-h37Rv_genes_df = pd.read_csv("./references/ref_genome/mycobrowser_h37rv_genes_v4.csv")
+h37Rv_genes_df = pd.read_csv("/home/sak0914/Mtb_Megapipe/references/ref_genome/mycobrowser_h37rv_genes_v4.csv")
 
 # dataframe of the gene(s) that each position of H37Rv is in. This was made from the mycobrowser genes dataframe above, so the same genes and noncoding regions are reflected
 # only positions in coding regions are included in this file
-h37Rv_coords_to_gene = pd.read_csv("./references/ref_genome/H37Rv_coords_to_gene.csv.gz", compression='gzip')
+h37Rv_coords_to_gene = pd.read_csv("/home/sak0914/Mtb_Megapipe/references/ref_genome/H37Rv_coords_to_gene.csv.gz", compression='gzip')
 
-h37Rv = SeqIO.read("./references/ref_genome/GCF_000195955.2_ASM19595v2_genomic.gbff", "genbank")
+h37Rv = SeqIO.read("/home/sak0914/Mtb_Megapipe/references/ref_genome/GCF_000195955.2_ASM19595v2_genomic.gbff", "genbank")
 
 # goal: combine SNPs in a VCF file that occur on the same codon so that snpEff will annotate them properly
 # snpEff does not natively consider multiple variants on the same codon and will annotate them as though they occur separately
