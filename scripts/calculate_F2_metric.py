@@ -7,11 +7,13 @@ parser = argparse.ArgumentParser()
 # dest indicates the name that each argument is stored in so that you can access it after running .parse_args()
 parser.add_argument('-i', type=str, dest='sample_dir', help='Lineage directory where all input and output files are', required=True)
 parser.add_argument('-o', type=str, dest='F2_fName', help='Output text file to write the F2 metric to', required=True)
+parser.add_argument('-O', type=str, dest='allele_fractions_by_lineage', help='Output CSV file to save the fractions of support for each lineage', required=True)
 parser.add_argument('--lineage-file', dest='lineage_defining_SNPs_file', help='File of all lineage-defining SNPs for the Coll scheme', required=True)
 
 cmd_line_args = parser.parse_args()
 sample_dir = cmd_line_args.sample_dir
 F2_fName = cmd_line_args.F2_fName
+allele_fractions_by_lineage = cmd_line_args.allele_fractions_by_lineage
 lineage_defining_SNPs_file = cmd_line_args.lineage_defining_SNPs_file
 
 
@@ -175,61 +177,26 @@ def get_lineage_defining_SNP_depths(reduced_VCF):
 
 
 
-def calculate_minor_allele_fraction_per_SNP_set(lineage_SNPs_from_sample_df):
+def get_top_two_distinct_lineages(df_allele_fractions):
 
-	#get a list of all lineages (i.e. branches) that we have SNP information for
-	all_lineages = list( set( list(lineage_SNPs_from_sample_df.lineage) ) )
+    df_allele_fractions = df_allele_fractions.sort_values("maf", ascending=False).reset_index(drop=True)
 
-	#create a series that will store the minor allele fraction (p) for each lineage set
-	minor_allele_fraction_per_SNP_set = pd.Series(index = all_lineages)
+    # the top lineage will be the first one. The second needs to be searched for to get a distinct one
+    top_lineage = df_allele_fractions['lineage'].values[0]
 
-	for lineage in minor_allele_fraction_per_SNP_set.index:
+    for i, row in df_allele_fractions.iterrows():
 
-		#subset to lineage-defining SNPs
-		specific_lineage_SNPs_depths = lineage_SNPs_from_sample_df[lineage_SNPs_from_sample_df.lineage == lineage]
+        # skip the first one, which is the top lineage
+        if i > 0:
 
-		#calculate the Total Depth across all SNP sites for this SNP set
-		D = np.sum(specific_lineage_SNPs_depths.depth)
+            # check that neither lineage is a subset of the other. Then they are distinct
+            if row['lineage'] not in top_lineage and top_lineage not in row['lineage']:
 
-		#calculate the Total Minor Depth
-		M = np.sum(specific_lineage_SNPs_depths.minor_depth)
+                second_lineage = row['lineage']
+                break
 
-		#calculate the minor allele fraction 
-		p = float(M) / float(D)
+    return [top_lineage, second_lineage]
 
-		#store p for this SNP set in series
-		minor_allele_fraction_per_SNP_set[lineage] = p
-
-	#sort values in descending order
-	minor_allele_fraction_per_SNP_set.sort_values(ascending = False , inplace = True)
-	
-	return minor_allele_fraction_per_SNP_set
-
-
-
-def calculate_F2(sorted_minor_allele_fraction_per_SNP_set, lineage_SNP_depths_from_sample_df):
-
-    # calculate F2 - get top 2 lineages with the highest minor allele frequencies
-    F2_lineages = sorted_minor_allele_fraction_per_SNP_set[:2].index.values
-
-    # subset to SNPs that belong to either SNP set in F2 lineages
-    F2_lineage_SNP_depths_df = lineage_SNP_depths_from_sample_df.query("lineage in @F2_lineages")
-
-    try:
-        # calculate the Total Depth across all SNP sites for this SNPs belonging to F2 SNP sets
-        D2 = np.sum(F2_lineage_SNP_depths_df.depth)
-
-        # calculate the Total Minor Depth
-        M2 = np.sum(F2_lineage_SNP_depths_df.minor_depth)
-
-        # calculate the minor allele fraction
-        p2 = float(M2) / float(D2)
-
-    except AttributeError:
-        # df may be empty!
-        p2 = np.nan
-
-    return p2
 
 
 ##########################################################################################################################################################
@@ -241,11 +208,23 @@ reduced_VCF = os.path.join(sample_dir, "lineage", f"{sample_ID}_lineage_position
 # get lineage defining SNP depths for SNPs in all SNP sets
 lineage_SNP_depths_from_sample_df = get_lineage_defining_SNP_depths(reduced_VCF)
 
-# calculate minor allele frequency estimates for all SNP sets & sort in descending order
-sorted_minor_allele_fraction_per_SNP_set = calculate_minor_allele_fraction_per_SNP_set(lineage_SNP_depths_from_sample_df)
+# sum the depths across the sites in each lineage set
+df_allele_fractions = lineage_SNP_depths_from_sample_df.groupby("lineage")[['minor_depth', 'depth']].sum().reset_index()
+
+# minor allele fraction, p, = M / D, where M = \sum_i=1^n m_i and D = \sum_i=1^n d_i, which we computed above
+df_allele_fractions['maf'] = df_allele_fractions['minor_depth'] / df_allele_fractions['depth']
+
+# save the dataframe of minor allele fractions (MAF)
+df_allele_fractions.to_csv(allele_fractions_by_lineage, index=False)
+
+# get the two distinct lineages with the highest MAFs. Distinct so that you don't consider like 2.2 and 2.2.1. Presumably they would be the same
+top_two_lineages = get_top_two_distinct_lineages(df_allele_fractions)
 
 # calculate F2 measure from the depths at lineage defining sites
-F2 = calculate_F2(sorted_minor_allele_fraction_per_SNP_set, lineage_SNP_depths_from_sample_df)
+M = lineage_SNP_depths_from_sample_df.query("lineage in @top_two_lineages")['minor_depth'].sum()
+D = lineage_SNP_depths_from_sample_df.query("lineage in @top_two_lineages")['depth'].sum()
+
+F2 = M / D
 
 with open(F2_fName, 'w+') as file:
     file.write(str(F2) + "\n")
