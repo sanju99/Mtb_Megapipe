@@ -360,7 +360,7 @@ rule align_reads_mark_duplicates:
         samtools index {output.bam_file_dedup}
 
         # delete the FASTQ files because they are no longer needed
-        rm {input.fastq1_trimmed_classified} {input.fastq2_trimmed_classified}
+        # rm {input.fastq1_trimmed_classified} {input.fastq2_trimmed_classified}
         """
 
 
@@ -445,7 +445,7 @@ rule merge_BAMs:
             echo "$num_runs_passed WGS runs for {wildcards.sample_ID} have median depth ≥ {params.median_depth} and at least {params.genome_cov_prop} of sites with {params.min_cov}x coverage"
 
             # merge them using samtools. works because the original bam files were sorted prior to running picard and dropping duplicates (after which they remain sorted)
-            samtools merge -b {input.pass_BAMs_file} {output.merged_bam_file}
+            samtools merge -b {input.pass_BAMs_file} -o {output.merged_bam_file}
 
             if [ $num_runs_passed -eq 1 ]; then
 
