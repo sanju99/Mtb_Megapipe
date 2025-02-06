@@ -4,3 +4,9 @@ archive/
 
 # snakemake files that are specific to the workflow
 .snakemake/
+
+# additional config and running files
+snakefile_*
+run_smk_*
+config_*
+rules_*
