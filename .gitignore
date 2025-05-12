@@ -18,7 +18,4 @@ rules_*
 /*.csv
 /*.tsv
 
-# too big
-*.fasta*
-
 *sandbox.ipynb
