@@ -14,15 +14,11 @@ sample_run_dict = dict(zip(df_samples_runs[0], df_samples_runs[1].str.split(',')
 assert df_samples_runs[2].isin([0, 1]).all()
 download_public_FASTQ_dict = dict(zip(df_samples_runs[0], df_samples_runs[2]))
 
-include: "rules.smk"
+include: "rules/cleaning.smk"
 
 # Define rules in the Snakefile
 
 rule all:
     input:
-        # [f"{output_dir}/{sample_ID}/{run_ID}/fastlin/output.txt" for sample_ID in sample_run_dict.keys() for run_ID in sample_run_dict[sample_ID]],
-        # [f"{output_dir}/{sample_ID}/{run_ID}/kraken/kraken_report_standard_DB" for sample_ID in sample_run_dict.keys() for run_ID in sample_run_dict[sample_ID]]
-        [f"{output_dir}/{sample_ID}/{run_ID}/fastlin/primary_lineage.txt" for sample_ID in sample_run_dict.keys() for run_ID in sample_run_dict[sample_ID]],
-        # [f"{output_dir}/{sample_ID}/bam/{sample_ID}.dedup.bam" for sample_ID in sample_run_dict.keys()],
-        # [f"{output_dir}/{sample_ID}/lineage/F2_Coll2014.txt" for sample_ID in sample_run_dict.keys()],
-        # [f"{output_dir}/{sample_ID}/WHO_resistance/{sample_ID}_pred_AF_thresh_75.csv" for sample_ID in sample_run_dict.keys()],
+        [f"{output_dir}/{sample_ID}/bam/{sample_ID}.dedup.cram" for sample_ID in sample_run_dict.keys()],
+        # [f"{output_dir}/{sample_ID}/{run_ID}/bam/{run_ID}.dedup.cram" for sample_ID in sample_run_dict.keys() for run_ID in sample_run_dict[sample_ID]],

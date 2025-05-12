@@ -23,9 +23,15 @@ parser = argparse.ArgumentParser()
 
 # Add a required string argument for the input file (annotations)
 parser.add_argument("-i", "--input", dest='input_file', type=str, required=True)
+parser.add_argument("-o", "--output", dest='output_file', type=str, required=True)
 
 cmd_line_args = parser.parse_args()
 input_file = cmd_line_args.input_file
+output_file = cmd_line_args.output_file
+
+
+if os.path.isfile(output_file):
+    exit()
 
 
 def split_annotations(df):
@@ -356,11 +362,11 @@ def process_intergenic_variant_WHO_catalog_coord(row):
         
 
 
-def get_variants_with_ablations(df):
+def get_variants_with_LoFs(df):
 
     # get all feature ablations
     # Filter columns that match the pattern
-    lof_strings = ['feature_ablation', 'transcript_ablation', 'start_lost', 'stop_gained']
+    lof_strings = ['feature_ablation', 'transcript_ablation', 'start_lost', 'stop_gained', 'frameshift_variant']
     annotation_columns = [col for col in df.columns if col.startswith('EFFECT')]
     
     # Initialize an empty boolean Series to combine the filter results
@@ -371,14 +377,14 @@ def get_variants_with_ablations(df):
         combined_filter = combined_filter | ((~pd.isnull(df[col])) & (df[col].str.contains('|'.join(lof_strings))))
     
     # Use the combined filter to select the matching rows
-    df_ablation = df[combined_filter].reset_index(drop=True)
+    df_LoF = df[combined_filter].reset_index(drop=True)
 
-    if len(df_ablation) == 0:
+    if len(df_LoF) == 0:
         return None
 
-    df_ablation_add = []
+    df_LoF_add = []
     
-    for i, row in df_ablation.iterrows():
+    for i, row in df_LoF.iterrows():
     
         for col in annotation_columns:
 
@@ -392,7 +398,7 @@ def get_variants_with_ablations(df):
                     
                     if variant in lof_strings:
                         
-                        add_row = df_ablation.iloc[i, :]
+                        add_row = df_LoF.iloc[i, :]
 
                         # the format is gene_deletion or frameshift or start_lost or stop_gained
                         # there is no gene name on the front of the non-deletion variants
@@ -422,13 +428,13 @@ def get_variants_with_ablations(df):
                         add_row['GENE'] = row[gene_col]
                         add_row['EFFECT'] = variant
                         
-                        df_ablation_add.append(pd.DataFrame(add_row).T)
+                        df_LoF_add.append(pd.DataFrame(add_row).T)
 
-    if len(df_ablation_add) > 0:
-        df_ablation_add = pd.concat(df_ablation_add)
+    if len(df_LoF_add) > 0:
+        df_LoF_add = pd.concat(df_LoF_add)
 
     # replace the variant column with {gene}_LoF
-    df_ablation_add['variant'] = df_ablation_add['GENE'] + '_' + 'LoF'
+    df_LoF_add['variant'] = df_LoF_add['GENE'] + '_' + 'LoF'
 
     # previously checked that for each (drug, gene) pair, if {gene}_LoF is R-associated, then all the component mutations have had their gradings updated, so using {gene}_LoF instead of the full variant name won't miss any resistance-associated variants
     
@@ -446,14 +452,22 @@ def get_variants_with_ablations(df):
 
     # don't return GENE_i or EFFECT_i. Won't know which column has the deleted gene and it's not worth getting, so these columns will be NaN in the annotated variants dataframe
     # but keep the primary columns. For ablations that affect multiple genes, each gene is a separate row (for the same variant) with the effect corresponding to that gene
-    return pd.concat([df_ablation, df_ablation_add]).dropna(subset='variant').reset_index(drop=True)[['POS', 'REF', 'ALT', 'FILTER', 'QUAL', 'AF', 'DP', 'BQ', 'MQ', 'GENE', 'EFFECT', 'variant']]
+    
+    # pilon cols
+    if 'BQ' in df_LoF.columns:
+        QC_cols = ['AF', 'DP', 'BQ', 'MQ', 'QUAL']
+    else:
+        # freebayes columns
+        QC_cols = ['AO', 'DP', 'MQM']
+    
+    return pd.concat([df_LoF, df_LoF_add]).dropna(subset='variant').reset_index(drop=True)[['POS', 'REF', 'ALT', 'FILTER', 'GENE', 'EFFECT', 'variant'] + QC_cols]
     
 
 
 def add_variant_column(df):
 
     # separate function to handle deletions that are not reflected in the GENE column but only in the ANN column, which will be listed as {gene}_deletion
-    df_ablations = get_variants_with_ablations(df)
+    df_LoFs = get_variants_with_LoFs(df)
 
     # then remove the extra columns to clean up the dataframe
     df = df[[col for col in df.columns if 'GENE_' not in col and 'EFFECT_' not in col]]
@@ -461,11 +475,7 @@ def add_variant_column(df):
     df_add = []
     
     for i, row in df.iterrows():
-
-        # some weird cases: when an amino acid indel occurs at the start of a gene, snpEff may annotate it in two different ways
-        # it will say that it's an intergenic variant between genes 1 and 2, but in HGVS P format, it's an indel or duplication extending the gene at the 
-        # actually only exclude specific edge cases from here when you see them. This one is gid-Rv3920c n.4408157_4408202dupGCCGCGGTCCGAAGATCGCAGACGCCGCGGGCTCGATCGGAGACAT
-        # this got fixed by left-aligning indels, never mind
+        
         if '-' in row['GENE']:
             cleaned_mut = process_intergenic_variant_WHO_catalog_coord(row)
         else:
@@ -497,35 +507,32 @@ def add_variant_column(df):
     df = df.dropna(subset='variant')
 
     # combine with ablations and sort by position
-    # df_ablations could be None if there are no ablations
-    if df_ablations is not None:
-        return pd.concat([df, df_ablations]).sort_values("POS").reset_index(drop=True)
+    # df_LoFs could be None if there are no ablations
+    if df_LoFs is not None:
+        return pd.concat([df, df_LoFs]).sort_values("POS").reset_index(drop=True)
     else:
         return df.sort_values("POS").reset_index(drop=True)
 
-
-output_file = input_file.replace('.tsv', '_annot.tsv')
-
-if os.path.isfile(output_file):
-    exit()
     
-# read in variants TSV file, remove imprecise variants from this
-df = pd.read_csv(input_file, sep='\t')
+# read in variants TSV file
+df = pd.read_csv(input_file, sep='\t', on_bad_lines='skip')
 
 if len(df) == 0:
     # save empty dataframe
     df.to_csv(output_file, sep='\t', index=False)
     print(f"{input_file} is empty, which means that are no variants in the WHO catalog regions")
     exit()
-    
-# remove imprecise variants because the variant caller is not confidence
-df = df.query("IMPRECISE == False")
 
-if len(df) == 0:
-    # save empty dataframe
-    df.to_csv(output_file, sep='\t', index=False)
-    print(f"There are only imprecise variants in the WHO catalog regions in {input_file}")
-    exit()
+# remove imprecise variants from this if it's a pilon VCF
+if 'IMPRECISE' in df.columns:
+    # remove imprecise variants because the variant caller is not confidence
+    df = df.query("IMPRECISE == False")
+
+    if len(df) == 0:
+        # save empty dataframe
+        df.to_csv(output_file, sep='\t', index=False)
+        print(f"There are only imprecise variants in the WHO catalog regions in {input_file}")
+        exit()
 
 # split the annotation field. This is for large variants that affect multiple genes. Need to separate them into individual gene components
 df = split_annotations(df)
