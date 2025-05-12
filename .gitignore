@@ -16,3 +16,6 @@ rules_*
 
 # created if using this directory to run workflows
 samtools*
+
+# too big
+*.fasta*
