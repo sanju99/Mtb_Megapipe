@@ -5,6 +5,9 @@ archive/
 # snakemake files that are specific to the workflow
 .snakemake/
 
+# created if using this directory to run workflows
+samtools*
+
 # additional config and running files
 snakefile_*
 run*.sh
@@ -15,8 +18,7 @@ rules_*
 /*.csv
 /*.tsv
 
-# created if using this directory to run workflows
-samtools*
-
 # too big
 *.fasta*
+
+*sandbox.ipynb
