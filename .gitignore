@@ -13,6 +13,7 @@ rules_*
 
 # input data files. Don't need to keep them here
 /*.csv
+/*.tsv
 
 # created if using this directory to run workflows
 samtools*
