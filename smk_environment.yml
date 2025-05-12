@@ -1,7 +1,7 @@
 name: snakemake
 channels:
-  - anaconda
   - conda-forge
+  - anaconda
   - bioconda
   - defaults
 dependencies:
@@ -250,4 +250,4 @@ dependencies:
   - pip:
       - fast-lineage-caller==0.3.1
       - pyvcf==0.6.8
-prefix: /Users/skulkarni/opt/anaconda3/envs/snakemake
+prefix: /home/sak0914/anaconda3/envs/snakemake

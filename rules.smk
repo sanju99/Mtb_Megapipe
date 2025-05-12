@@ -30,7 +30,7 @@ rule get_input_FASTQ_files:
             shell("""
                 module load sratoolkit/2.10.7
 
-                # the script deletes the unzipped FASTQ files, so don't need to do it in the rule
+                # the script performs the same QC as in the next block
                 bash {params.download_script} {params.sample_out_dir} {wildcards.run_ID}
             """)
         elif download_public_FASTQ_dict[wildcards.sample_ID] == 0:
@@ -71,8 +71,8 @@ rule trim_adapters:
         fastq1 = f"{run_out_dir}/{{run_ID}}_R1.fastq.gz",
         fastq2 = f"{run_out_dir}/{{run_ID}}_R2.fastq.gz",
     output:
-        fastq1_trimmed = f"{run_out_dir}/fastp/{{run_ID}}.R1.trimmed.fastq",
-        fastq2_trimmed = f"{run_out_dir}/fastp/{{run_ID}}.R2.trimmed.fastq",
+        fastq1_trimmed = f"{run_out_dir}/fastp/{{run_ID}}.R1.trimmed.fastq.gz",
+        fastq2_trimmed = f"{run_out_dir}/fastp/{{run_ID}}.R2.trimmed.fastq.gz",
         fastp_html = f"{run_out_dir}/fastp/fastp.html",
         fastp_json = f"{run_out_dir}/fastp/fastp.json"
     conda:
@@ -83,13 +83,14 @@ rule trim_adapters:
         """
         fastp -i {input.fastq1} -I {input.fastq2} -o {output.fastq1_trimmed} -O {output.fastq2_trimmed} -h {output.fastp_html} -j {output.fastp_json} --length_required {params.min_read_length} --dedup --thread 8
 
-        rm {input.fastq1} {input.fastq2}
+        # rm {input.fastq1} {input.fastq2}
         """
+
 
 rule kraken_classification:
     input:
-        fastq1_trimmed = f"{run_out_dir}/fastp/{{run_ID}}.R1.trimmed.fastq",
-        fastq2_trimmed = f"{run_out_dir}/fastp/{{run_ID}}.R2.trimmed.fastq",
+        fastq1_trimmed = f"{run_out_dir}/fastp/{{run_ID}}.R1.trimmed.fastq.gz",
+        fastq2_trimmed = f"{run_out_dir}/fastp/{{run_ID}}.R2.trimmed.fastq.gz",
     output:
         fastq1_trimmed_classified = f"{run_out_dir}/kraken/{{run_ID}}_1.kraken.filtered.fastq",
         fastq2_trimmed_classified = f"{run_out_dir}/kraken/{{run_ID}}_2.kraken.filtered.fastq",
@@ -98,14 +99,22 @@ rule kraken_classification:
     conda:
         f"{primary_directory}/envs/read_processing_aln.yaml"
     params:
-        kraken_db = f"{primary_directory}/{config['kraken_db']}",
+        kraken_db = {config['kraken_db']},
         output_dir = output_dir,
         classified_out_string = f"{run_out_dir}/kraken/{{run_ID}}#.kraken.filtered.fastq"
     shell:
         """
-        kraken2 --db {params.kraken_db} --threads 8 --paired {input.fastq1_trimmed} {input.fastq2_trimmed} --report {output.kraken_report} --classified-out {params.classified_out_string} > {output.kraken_classifications}
+        # --confidence is the minimum fraction of k-mers in a read that must match a given taxon for that read to be assigned to that taxon
+        kraken2 --db {params.kraken_db} \
+                --threads 8 \
+                --confidence 0 \
+                --paired {input.fastq1_trimmed} {input.fastq2_trimmed} \
+                --gzip-compressed \
+                --report {output.kraken_report} \
+                --classified-out {params.classified_out_string} \
+                --output {output.kraken_classifications}
         
-        rm {input.fastq1_trimmed} {input.fastq2_trimmed}
+        # rm {input.fastq1_trimmed} {input.fastq2_trimmed}
         """
 
 
@@ -181,7 +190,8 @@ rule fastlin_typing:
         gzip -c {input.fastq1_trimmed_classified} > {output.fastq1_trimmed_classified_gzipped}
         gzip -c {input.fastq2_trimmed_classified} > {output.fastq2_trimmed_classified_gzipped}
         
-        fastlin -d {output.fastlin_dir} -b {params.fastlin_barcodes} -o {output.fastlin_output} -x 300
+        # there's one TRUST sample with coverage > 900
+        fastlin -d {output.fastlin_dir} -b {params.fastlin_barcodes} -o {output.fastlin_output} -x 100
         """
 
 
@@ -193,10 +203,6 @@ def does_sample_pass_fastlin(output_dir, sample_ID):
 
     if len(fastlin_outputs) == 0:
         raise ValueError(f"There are no fastlin outputs for {output_dir}/{sample_ID}")
-
-    # # if there is only 1 WGS run, continue with that one
-    # elif len(fastlin_outputs) == 1:
-    #    return True
 
     # check the coverage in the k_cov column. This can save time by identifying no-coverage samples and halting the pipeline before bwa-mem
     # these are probably targeted sequencing samples, so the genome-wide coverage is estimated at 0 by fastlin
@@ -345,8 +351,8 @@ rule align_reads_mark_duplicates:
         bwa-mem2 index {params.ref_genome}
 
         # align reads to the reference genome sequence. The RG name specifies the read group name, which is necessary if you are merging multiple WGS runs into a single BAM file
-        bwa-mem2 mem -M -R "@RG\\tID:{wildcards.run_ID}\\tSM:{wildcards.run_ID}" -t 8 {params.ref_genome} {input.fastq1_trimmed_classified} {input.fastq2_trimmed_classified} > {output.sam_file}
-
+        bwa-mem2 mem -M -R "@RG\\tID:{wildcards.run_ID}\\tSM:{wildcards.sample_ID}" -t 8 {params.ref_genome} {input.fastq1_trimmed_classified} {input.fastq2_trimmed_classified} > {output.sam_file}
+        
         # sort alignment and convert to bam file
         samtools view -b {output.sam_file} | samtools sort > {output.bam_file}
 
@@ -354,13 +360,13 @@ rule align_reads_mark_duplicates:
         samtools index {output.bam_file}
 
         # -Xmx6g specifies to allocate 6 GB
-        picard -Xmx30g MarkDuplicates I={output.bam_file} O={output.bam_file_dedup} REMOVE_DUPLICATES=true M={output.bam_file_dedup_metrics} ASSUME_SORT_ORDER=coordinate READ_NAME_REGEX='(?:.*.)?([0-9]+)[^.]*.([0-9]+)[^.]*.([0-9]+)[^.]*$'
+        picard -Xmx10g MarkDuplicates I={output.bam_file} O={output.bam_file_dedup} REMOVE_DUPLICATES=true M={output.bam_file_dedup_metrics} ASSUME_SORT_ORDER=coordinate READ_NAME_REGEX='(?:.*.)?([0-9]+)[^.]*.([0-9]+)[^.]*.([0-9]+)[^.]*$'
 
         # index the deduplicated alignment with samtools, which will create a dedup_bam_file.bai file
         samtools index {output.bam_file_dedup}
-
-        # delete the FASTQ files because they are no longer needed
-        # rm {input.fastq1_trimmed_classified} {input.fastq2_trimmed_classified}
+        
+        # rm {input.fastq1_trimmed_classified}
+        # rm {input.fastq2_trimmed_classified}
         """
 
 
@@ -416,6 +422,7 @@ rule get_BAMs_passing_QC_thresholds:
         # run the script to determine which runs pass the BAM depth criteria
         python3 -u {params.BAM_depth_QC_script} -i {input.depth_file_gzip} -b {input.bam_file_dedup} --median-depth {params.median_depth} --min-cov {params.min_cov} --genome-cov-prop {params.genome_cov_prop}
         """
+
 
 
 rule merge_BAMs:
@@ -478,41 +485,16 @@ rule pilon_variant_calling:
         f"{primary_directory}/envs/variant_calling.yaml"
     shell:
         """
-        pilon -Xmx30g --minmq 1 --genome {params.ref_genome} --bam {input.merged_bam_file} --output {wildcards.sample_ID} --outdir {params.sample_pilon_dir} --variant
+        pilon -Xmx10g --minmq 1 --genome {params.ref_genome} --bam {input.merged_bam_file} --output {wildcards.sample_ID} --outdir {params.sample_pilon_dir} --variant
             
-        # then gzip the full VCF file and delete the unzipped version. Also delete the FASTA file because it's not needed
-        gzip -c {output.vcf_file} > {output.vcf_file_gzip}
-
-        # save the variants only (non-REF calls) to another VCF file. Left-align indels and deduplicate variants with the same POS, REF, and ALT.
+        # left-align indels and rop duplicates, then gzip the full VCF file 
         # this affects those cases where the position of the indel is ambiguous
-        # however, because of the shifting positions, the position of the indel can change, so need to sort it again
-        bcftools norm --rm-dup none --fasta-ref {params.ref_genome} {output.vcf_file_gzip} | bcftools sort | bcftools view --types snps,indels,mnps,other > {output.vcf_file_variants_only}
+        # however, because of the shifting positions, the position of the indel can change, so need to sort it
+        bcftools norm --rm-dup none --fasta-ref {params.ref_genome} {output.vcf_file} | bcftools sort | gzip -c > {output.vcf_file_gzip}
+
+        # save the variants only (non-REF calls) to another VCF file
+        bcftools view --types snps,indels,mnps,other {output.vcf_file_gzip} > {output.vcf_file_variants_only}
         """
-
-
-
-# rule freebayes_variant_calling:
-#     input:
-#         merged_bam_file = f"{sample_out_dir}/bam/{{sample_ID}}.dedup.bam",
-#     output:
-#         vcf_file = temp(f"{sample_out_dir}/freebayes/{{sample_ID}}.vcf"),
-#         vcf_file_gzip = f"{sample_out_dir}/freebayes/{{sample_ID}}_full.vcf.gz",
-#         vcf_file_SNPs_only = f"{sample_out_dir}/freebayes/{{sample_ID}}_SNPs.vcf",
-#     params:
-#         ref_genome = os.path.join(primary_directory, references_dir, "ref_genome", "H37Rv_NC_000962.3.fna"),
-#     conda:
-#         f"{primary_directory}/envs/variant_calling.yaml"
-#     shell:
-#         """
-#         # use ploidy of 1
-#         freebayes -f {params.ref_genome} -p 1 {input.merged_bam_file} > {output.vcf_file}
-
-#         # then gzip the full VCF file and delete the unzipped version. Also delete the FASTA file because it's not needed
-#         gzip -c {output.vcf_file} > {output.vcf_file_gzip}
-
-#         # save SNPs only to another VCF file
-#         bcftools view --types snps,mnps {output.vcf_file_gzip} > {output.vcf_file_SNPs_only}
-#         """
 
 
 
@@ -554,7 +536,7 @@ rule lineage_typing:
         output_dir = output_dir,        
     output:
         F2_metric_output = f"{sample_out_dir}/lineage/F2_Coll2014.txt",
-        minor_allele_fractions_output = f"{sample_out_dir}/lineage/minor_allele_fractions.csv",
+        minor_allele_fractions_output = temp(f"{sample_out_dir}/lineage/minor_allele_fractions.csv"),
         fast_lineage_caller_output = f"{sample_out_dir}/lineage/fast_lineage_caller_output.txt",
     shell:
         """
@@ -652,29 +634,10 @@ rule get_WHO_catalog_resistance_predictions:
         get_WHO_resistance_predictions_script = os.path.join(primary_directory, scripts_dir, "WHO_catalog_resistance_pred.py"),
     shell:
         """
-        python3 -u {params.process_variants_WHO_catalog_script} -i {input.variants_file_tsv}
+        python3 -u {params.process_variants_WHO_catalog_script} -i {input.variants_file_tsv} -o {output.variants_file_tsv_annot}
         rm {input.variants_file_tsv}
 
         # get resistance predictions -- any Group 1 or 2 variant that passes QC leads to a prediction of R for a given drug. If not, predicted S
         python3 -u {params.get_WHO_resistance_predictions_script} -i {output.variants_file_tsv_annot} -o {params.output_file_basename}
         python3 -u {params.get_WHO_resistance_predictions_script} -i {output.variants_file_tsv_annot} -o {params.output_file_basename} --AF-thresh 0.25
-        """
-
-
-rule get_SNPs_for_phylogenetic_tree:
-    input:
-        vcf_file_gzip = f"{sample_out_dir}/pilon/{{sample_ID}}_full.vcf.gz",
-    output:
-        vcf_SNP_sites = temp(f"{sample_out_dir}/lineage/SNP_sites.tsv"),
-        vcf_SNP_sites_gzip = f"{sample_out_dir}/lineage/SNP_sites.tsv.gz",
-    conda:
-        f"{primary_directory}/envs/variant_annotation.yaml"
-    params:
-        exclude_regions_BED_file = os.path.join(primary_directory, references_dir, "phylogeny", "exclude_regions.bed"),
-    shell:
-        """
-        # exclude structural variants (SVTYPE)
-        gunzip -c {input.vcf_file_gzip} | bcftools filter -e "SVTYPE == 'INS' | SVTYPE == 'DEL'" | bedtools subtract -a '-' -b {params.exclude_regions_BED_file} | SnpSift extractFields '-' POS REF ALT FILTER QUAL AF DP BQ MQ -e "" > {output.vcf_SNP_sites}
-
-        gzip -c {output.vcf_SNP_sites} > {output.vcf_SNP_sites_gzip}
         """

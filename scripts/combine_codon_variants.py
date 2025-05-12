@@ -34,7 +34,10 @@ def check_is_snp(record):
         
         # check string lengths to ensure no indels and also the IC and DC flags in the INFO field
         # skip cases where REF = ALT (not a SNP)
-        if len(record.REF) == len(alt_allele) and record.INFO['IC'] == 0 and record.INFO['DC'] == 0 and record.REF != alt_allele:
+        if 'IC' in record.INFO.keys() and 'DC' in record.INFO.keys():
+            if len(record.REF) == len(alt_allele) and record.INFO['IC'] == 0 and record.INFO['DC'] == 0 and record.REF != alt_allele:
+                return True
+        else:
             return True
     
     return False
@@ -247,7 +250,8 @@ def combine_all_variants_single_codon(pos, vcf_fName):
                                 if info_field == 'AF':
                                     updated_info_field[info_field] = np.min([info_value, combined_entry.INFO[info_field]])
                                 else:
-                                    updated_info_field[info_field] = np.round(np.mean([info_value, combined_entry.INFO[info_field]]), 2)
+                                    if info_field not in ['QNAME', 'QSTART', 'QSTRAND']:
+                                        updated_info_field[info_field] = np.round(np.mean([info_value, combined_entry.INFO[info_field]]), 2)
                                     
                         else:
                             updated_info_field[info_field] = info_value
@@ -311,3 +315,6 @@ if not os.path.isfile(updated_vcf_fName):
     
     # Close the VCF Writer
     vcf_writer.close()
+
+else:
+    print("Already finished")
