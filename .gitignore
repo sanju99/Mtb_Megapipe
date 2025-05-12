@@ -7,6 +7,12 @@ archive/
 
 # additional config and running files
 snakefile_*
-run_smk_*
+run*.sh
 config_*
 rules_*
+
+# input data files. Don't need to keep them here
+/*.csv
+
+# created if using this directory to run workflows
+samtools*
