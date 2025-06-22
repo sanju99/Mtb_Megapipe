@@ -12,7 +12,6 @@ samtools*
 snakefile_*
 run*.sh
 config_*
-rules_*
 
 # input data files. Don't need to keep them here
 /*.csv
