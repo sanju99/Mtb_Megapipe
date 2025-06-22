@@ -14,7 +14,7 @@ sample_run_dict = dict(zip(df_samples_runs[0], df_samples_runs[1].str.split(',')
 assert df_samples_runs[2].isin([0, 1]).all()
 download_public_FASTQ_dict = dict(zip(df_samples_runs[0], df_samples_runs[2]))
 
-include: "rules/rules_new.smk"
+include: "rules/rules.smk"
 
 # Define rules in the Snakefile
 
