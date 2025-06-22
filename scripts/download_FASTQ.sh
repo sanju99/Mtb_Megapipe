@@ -1,3 +1,5 @@
+module load sratoolkit/2.10.7
+
 set -o errexit # any error will cause the shell script to exit immediately. This is not native bash behavior
 
 if ! [ $# -eq 2 ]; then
@@ -14,10 +16,16 @@ if [ ! -d "$sample_out_dir/$run_ID" ]; then
 fi
 
 # Download the FASTQ files
-fastq-dump --split-files --outdir "$sample_out_dir/$run_ID" $run_ID
+fasterq-dump --split-files --outdir "$sample_out_dir/$run_ID" $run_ID
 
 FQ1_fName="$sample_out_dir/$run_ID/${run_ID}_1.fastq"
 FQ2_fName="$sample_out_dir/$run_ID/${run_ID}_2.fastq"
+
+if [ ! -f $FQ1_fName ] || [ ! -f $FQ2_fName ]; then
+    echo "Both paired-end FASTQ files are not present. Quitting sample $run_ID"
+    echo "$run_ID" >> "/home/sak0914/Mtb_Megapipe/Anna_single_read_FQs.txt"
+    exit 1
+fi
 
 # first check that the original FASTQ files have the same numbers of lines
 FQ1_line_count=$(wc -l $FQ1_fName | awk '{print $1}')
@@ -42,6 +50,6 @@ if cmp -s "$FQ1_fName" "$FQ2_fName"; then
    exit 1
 fi
 
-# Gzip the FASTQ files
-gzip -c $FQ1_fName > "$sample_out_dir/$run_ID/${run_ID}_R1.fastq.gz"
-gzip -c $FQ2_fName > "$sample_out_dir/$run_ID/${run_ID}_R2.fastq.gz"
+# # Gzip the FASTQ files
+# gzip -c $FQ1_fName > "$sample_out_dir/$run_ID/${run_ID}_R1.fastq.gz"
+# gzip -c $FQ2_fName > "$sample_out_dir/$run_ID/${run_ID}_R2.fastq.gz"

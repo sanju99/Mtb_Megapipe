@@ -38,7 +38,35 @@ rule convert_BAM_to_CRAM:
         # delete the original BAM file
         rm {input.bam_file}
         """
+
+
+
+rule convert_BAM_to_CRAM_2:
+    input:
+        bam_file = f"{sample_out_dir}/bam/{{sample_ID}}.bam",
+    output:
+        cram_file = f"{sample_out_dir}/bam/{{sample_ID}}.cram",
+    conda:
+        f"{primary_directory}/envs/read_processing_aln.yaml"
+    shell:
+        """        
+        # determine the appropriate FASTA file by getting the name of the reference chromosome used for alignment
+        chrom_name=$(samtools idxstats {input.bam_file} | cut -f1 | head -1)
+
+        if [ "$chrom_name" = "Chromosome" ]; then
+            ref_fasta="/home/sak0914/Mtb_Megapipe/references/ref_genome/H37Rv_NC_000962.3.fna"
+        elif [ "$chrom_name" = "NC_000962.3" ]; then
+            ref_fasta="/home/sak0914/Mtb_Megapipe/references/ref_genome/refseq.fna"
+        else
+            echo "CHROM name $chrom_name is invalid"
+        fi
         
+        # create CRAM file
+        samtools view -T $ref_fasta -C -o {output.cram_file} {input.bam_file}
+
+        # delete the original BAM file
+        rm {input.bam_file}
+        """
         
         
 rule convert_BAM_to_CRAM_subdirs:
@@ -52,6 +80,7 @@ rule convert_BAM_to_CRAM_subdirs:
         """        
         # determine the appropriate FASTA file by getting the name of the reference chromosome used for alignment
         chrom_name=$(samtools idxstats {input.bam_file}  | cut -f1 | head -1)
+        echo $chrom_name
 
         if [ "$chrom_name" = "Chromosome" ]; then
             ref_fasta="/home/sak0914/Mtb_Megapipe/references/ref_genome/H37Rv_NC_000962.3.fna"

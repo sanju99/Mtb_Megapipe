@@ -1,0 +1,9 @@
+name: bwa_mem
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - bwa
+  - picard
+  - samtools
