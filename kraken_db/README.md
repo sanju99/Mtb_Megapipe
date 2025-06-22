@@ -9,7 +9,7 @@ kraken2-build --download-taxonomy --db $DBNAME
 To add your own genomes to the database, they must have a taxid in the FASTA file header, so add the human-adapted MTBC taxid (1773)
 
 ```python
-for fName in glob.glob("./kraken_db/genomes/*.fasta"):
+for fName in glob.glob("./kraken_db/custom_human_MTBC_genomes/*.fasta"):
 
     # added these manually by searching their exact taxids
     if not os.path.basename(fName).startswith('GCF'):
