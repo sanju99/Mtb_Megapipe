@@ -1,4 +1,4 @@
-To make the custom kraken database (assuming yours is named 20240915_humanAdaptedMTBC_DB), follow these instructions, taken from the <a href="https://github.com/DerrickWood/kraken2/wiki/Manual" target="_blank">kraken2 documentaion</a>:
+To make the custom kraken database (assuming yours is named custom_human_MTBC), follow these instructions, taken from the <a href="https://github.com/DerrickWood/kraken2/wiki/Manual" target="_blank">kraken2 documentaion</a>:
 
 ```bash
 DBNAME="custom_human_MTBC"
