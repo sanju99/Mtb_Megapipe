@@ -22,5 +22,5 @@ rules_*
 *sandbox.ipynb
 
 # large files
-*.fasta
+*.fasta*
 references/ref_genome/H37Rv_coords_to_gene.csv
