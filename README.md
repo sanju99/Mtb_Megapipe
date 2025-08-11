@@ -3,7 +3,7 @@
 To run the pipeline:
 
 ```
-snakemake --configfile config.yaml --cores 1 --keep-going --use-conda --conda-frontend conda `--rerun-incomplete
+snakemake --configfile config.yaml --cores 1 --keep-going --use-conda --conda-frontend conda --rerun-incomplete
 ```
 
 To create the DAG of jobs, run either of the following. The first will list every sample, the second will list just the steps. 
