@@ -1,4 +1,4 @@
-module load sratoolkit/2.10.7
+module load sratoolkit/3.2.0
 
 set -o errexit # any error will cause the shell script to exit immediately. This is not native bash behavior
 
@@ -16,14 +16,14 @@ if [ ! -d "$sample_out_dir/$run_ID" ]; then
 fi
 
 # Download the FASTQ files
-fasterq-dump --split-files --outdir "$sample_out_dir/$run_ID" $run_ID
+fastq-dump --split-files --outdir "$sample_out_dir/$run_ID" $run_ID
 
 FQ1_fName="$sample_out_dir/$run_ID/${run_ID}_1.fastq"
 FQ2_fName="$sample_out_dir/$run_ID/${run_ID}_2.fastq"
 
 if [ ! -f $FQ1_fName ] || [ ! -f $FQ2_fName ]; then
     echo "Both paired-end FASTQ files are not present. Quitting sample $run_ID"
-    echo "$run_ID" >> "/home/sak0914/Mtb_Megapipe/Anna_single_read_FQs.txt"
+    echo "$run_ID" >> "/home/sak0914/Mtb_Megapipe/single_read_FQs.txt"
     exit 1
 fi
 
@@ -34,13 +34,13 @@ FQ2_line_count=$(wc -l $FQ2_fName | awk '{print $1}')
 # check that neither FASTQ file has no reads
 if [ $FQ1_line_count -eq 0 ] || [ $FQ2_line_count -eq 0 ]; then
     echo "Error: At least one of the FASTQ files for $sample_ID/$run_ID has no reads"
+    echo "$run_ID" >> "/home/sak0914/Mtb_Megapipe/mismatched_read_counts.txt"
     exit 1
 # Compare the counts and raise an error if they are not equal 
 elif [ "$FQ1_line_count" -ne "$FQ2_line_count" ]; then
     echo "Error: FASTQ files for $sample_ID/$run_ID have different line counts: $FQ1_line_count and $FQ2_line_count"
+    echo "$run_ID" >> "/home/sak0914/Mtb_Megapipe/mismatched_read_counts.txt"
     exit 1
-# else
-#     echo "Line counts in paired-end FASTQ files for $sample_ID/$run_ID match"
 fi
 
 # compare paired end read files. If they are the same, then add to error list. Suppress output with -s tag, so it doesn't print out the differences
@@ -49,7 +49,3 @@ if cmp -s "$FQ1_fName" "$FQ2_fName"; then
    echo "Error: $FQ1_fName and $FQ2_fName are duplicates"
    exit 1
 fi
-
-# # Gzip the FASTQ files
-# gzip -c $FQ1_fName > "$sample_out_dir/$run_ID/${run_ID}_R1.fastq.gz"
-# gzip -c $FQ2_fName > "$sample_out_dir/$run_ID/${run_ID}_R2.fastq.gz"

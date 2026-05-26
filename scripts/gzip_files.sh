@@ -11,7 +11,7 @@
 set -o errexit # any error will cause the shell script to exit immediately. This is not native bash behavior
 
 if ! [ $# -eq 1 ]; then
-    echo "Please pass in 1 command line argument: a text file of the full names of BAM files to compress to CRAM"
+    echo "Please pass in 1 command line argument: a text file of full paths to files that need to be gzipped"
     exit
 fi
 

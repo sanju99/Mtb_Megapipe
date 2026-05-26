@@ -537,6 +537,8 @@ if 'IMPRECISE' in df.columns:
 # split the annotation field. This is for large variants that affect multiple genes. Need to separate them into individual gene components
 df = split_annotations(df)
 
+df = df.dropna(subset='EFFECT')
+
 # there are no gene fusions in the mutations catalog, so remove them to avoid having to try to process them
 # this is the column for the first variant effect
 df = df.loc[(~pd.isnull(df['EFFECT'])) & (~df['EFFECT'].str.contains('fusion'))].dropna(subset='GENE').reset_index(drop=True)

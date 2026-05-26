@@ -1,0 +1,8 @@
+name: Matthias_variant_calling
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - pilon=1.24
+  - bcftools

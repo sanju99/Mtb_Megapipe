@@ -1,0 +1,11 @@
+name: bayesian_modeling
+channels:
+  - conda-forge
+  - bioconda
+  - anaconda
+  - defaults
+dependencies:
+  - pysam
+  - pandas
+  - numpy
+  - pyvcf3

@@ -1,0 +1,13 @@
+name: read_processing_aln_bwa
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - fastp
+  - kraken2=2.1.3
+  - fastlin
+  - bwa
+  - picard
+  - samtools
+  - seqtk

@@ -1,0 +1,9 @@
+name: python_bioinformatics_utils
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - pyvcf3
+  - pysam
+  - biopython

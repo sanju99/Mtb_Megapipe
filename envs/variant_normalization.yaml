@@ -1,0 +1,9 @@
+name: variant_annotation
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - bcftools
+  - vcflib
+  - bedtools

@@ -1,14 +1,14 @@
 #!/bin/bash
 #SBATCH -c 1
-#SBATCH -t 2-06:00
-#SBATCH -p medium
+#SBATCH -t 0-11:59
+#SBATCH -p short
 #SBATCH --mem=5G
 #SBATCH -o /home/sak0914/Errors/zerrors_%j.out
 #SBATCH -e /home/sak0914/Errors/zerrors_%j.err
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=skulkarni@g.harvard.edu
 
-source activate bioinformatics
+source activate /home/sak0914/Mtb_Megapipe/.snakemake/conda/08dcc4c031abc315bb6cdf6e29a2302a_
 
 set -o errexit # any error will cause the shell script to exit immediately. This is not native bash behavior
 
@@ -20,8 +20,10 @@ fi
 input_file=$1
 
 # Read the TSV file line by line, skiping the header. IFS sets the field separator. Here, it is tab
-while IFS=$'\t', read -r BAM_fName
+while IFS=$'\t' read -r BAM_fName
 do
+
+    CRAM_fName="${BAM_fName%.bam}.cram"
 
     if [ -f $BAM_fName ]; then
 
@@ -36,18 +38,27 @@ do
             echo "CHROM name $chrom_name is invalid"
         fi
 
-        CRAM_fName="${BAM_fName%.bam}.cram"
+        # create CRAM file. IGV is only compatible with CRAM version 3.0, not 3.1, because the underlying htsjdk library is only compatible with v3.0
+        samtools view -T $ref_fasta -C -o $CRAM_fName -O cram,version=3.0 $BAM_fName
 
-        # create CRAM file
-        samtools view -T $ref_fasta -C -o $CRAM_fName $BAM_fName
-
-        # delete the original BAM file
+        # delete the original BAM file and the index file. The index has to be remade from the new BAM file
         rm $BAM_fName
+        rm "$BAM_fName.bai"
+        
+        # index the CRAM file. Then it can be read into IGV
+        samtools index $CRAM_fName
 
         echo "Finished converting $BAM_fName"
         
     else
         echo "Already finished $BAM_fName"
+        
+        # make CRAM index if not there
+        if [ ! -f "$CRAM_fName.crai" ]; then
+            
+            samtools index $CRAM_fName
+            
+        fi
         
     fi
 

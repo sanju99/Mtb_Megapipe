@@ -1,0 +1,12 @@
+name: Matthias_pipeline
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - fastp=0.20.1
+  - bwa=0.7.17
+  - kraken2
+  - picard=2.25.1
+  - fastlin
+  - samtools

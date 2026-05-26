@@ -1,0 +1,5 @@
+name: liftover
+channels:
+  - bioconda
+dependencies:
+  - liftoff

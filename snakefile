@@ -20,7 +20,8 @@ include: "rules/rules.smk"
 
 rule all:
     input:
-        # [f"{output_dir}/{sample_ID}/{run_ID}/bam/{run_ID}.dedup.bam" for sample_ID in sample_run_dict.keys() for run_ID in sample_run_dict[sample_ID]],
-        [f"{output_dir}/{sample_ID}/lineage/F2_Coll2014.txt" for sample_ID in sample_run_dict.keys()],
-        # [f"{output_dir}/{sample_ID}/pilon/{sample_ID}_variants.vcf" for sample_ID in sample_run_dict.keys()],
+        # [f"{output_dir}/{sample_ID}/lineage/fast_lineage_caller_output.txt" for sample_ID in sample_run_dict.keys()],
+        # [f"{output_dir}/{sample_ID}/lineage/F2_Coll2014.txt" for sample_ID in sample_run_dict.keys()],
+        # [f"{output_dir}/{sample_ID}/pilon/{sample_ID}_full.vcf.gz" for sample_ID in sample_run_dict.keys()],
+        # [f"{output_dir}/{sample_ID}/bam/{sample_ID}.bam" for sample_ID in sample_run_dict.keys()],
         [f"{output_dir}/{sample_ID}/WHO_resistance/{sample_ID}_pred_AF_thresh_75.csv" for sample_ID in sample_run_dict.keys()],
