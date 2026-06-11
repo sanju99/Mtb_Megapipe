@@ -9,7 +9,7 @@ run_out_dir = f"{output_dir}/{{sample_ID}}/{{run_ID}}"
 scripts_dir = config["scripts_dir"]
 references_dir = config["references_dir"]
 
-primary_directory = "/home/sak0914/Mtb_Megapipe"
+primary_directory = "~/Mtb_Megapipe"
 
 
 rule get_input_FASTQ_files:
