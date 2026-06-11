@@ -1,7 +1,7 @@
-output_dir: "/n/data1/hms/dbmi/farhat/rollingDB/genomic_data"
-fastq_dir: "/n/data1/hms/dbmi/farhat/rollingDB/fastq_db"
-isolates_to_run: "/home/sak0914/Mtb_Megapipe/rollingDB_samples_fix_resistance_pred.tsv"
-kraken_db: "/home/sak0914/Mtb_Megapipe/kraken_db/custom_human_MTBC"
+output_dir:
+fastq_dir:
+isolates_to_run:
+kraken_db: "./kraken_db/custom_human_MTBC"
 kraken_unclassified_max: 10
 scripts_dir: "./scripts"
 references_dir: "./references"
@@ -15,6 +15,6 @@ kraken2_confidence: 0
 kraken2_minimum_hit_groups: 2
 taxid: 77643
 bwa_mem_seed_length: 19
-exclude_regions_file: "BED_files/exclude_regions_50bp.bed" #"BED_files/RLC_Regions.Plus.LowPmapK50E4.H37Rv.bed"
-phase_variation_ROI_file: "BED_files/phase_variation_ROI.bed"
-WHO_catalog_regions_file: "BED_files/WHO_catalog_regions.bed"
+exclude_regions_file: "./BED_files/exclude_regions_50bp.bed" #"BED_files/RLC_Regions.Plus.LowPmapK50E4.H37Rv.bed"
+phase_variation_ROI_file: "./BED_files/phase_variation_ROI.bed"
+WHO_catalog_regions_file: "./BED_files/WHO_catalog_regions.bed"
