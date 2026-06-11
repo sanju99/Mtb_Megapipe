@@ -325,14 +325,14 @@ rule align_reads_mark_duplicates:
         output_dir = output_dir,
         ref_genome = os.path.join(primary_directory, references_dir, "ref_genome", "H37Rv_NC_000962.3.fna"),
     conda:
-        # f"{primary_directory}/envs/read_processing_aln_bwa.yaml"
-        f"{primary_directory}/envs/read_processing_aln.yaml"
+        f"{primary_directory}/envs/read_processing_aln_bwa.yaml"
+        # f"{primary_directory}/envs/read_processing_aln.yaml"
     shell:
         """
         # align reads to the reference genome sequence. The RG name specifies the read group name, which is necessary if you are merging multiple WGS runs into a single BAM file
-        bwa-mem2 mem -M -R "@RG\\tID:{wildcards.run_ID}\\tSM:{wildcards.sample_ID}" -t 8 {params.ref_genome} {input.fastq1_trimmed_classified} {input.fastq2_trimmed_classified} > {output.sam_file}
+        # bwa-mem2 mem -M -R "@RG\\tID:{wildcards.run_ID}\\tSM:{wildcards.sample_ID}" -t 8 {params.ref_genome} {input.fastq1_trimmed_classified} {input.fastq2_trimmed_classified} > {output.sam_file}
         
-        # bwa mem -M -R "@RG\\tID:{wildcards.run_ID}\\tSM:{wildcards.sample_ID}" -t 8 {params.ref_genome} {input.fastq1_trimmed_classified} {input.fastq2_trimmed_classified} > {output.sam_file}
+        bwa mem -M -R "@RG\\tID:{wildcards.run_ID}\\tSM:{wildcards.sample_ID}" -t 8 {params.ref_genome} {input.fastq1_trimmed_classified} {input.fastq2_trimmed_classified} > {output.sam_file}
 
         # sort alignment and convert to bam file
         samtools view -b {output.sam_file} | samtools sort > {output.bam_file}
@@ -346,8 +346,8 @@ rule align_reads_mark_duplicates:
         # index the alignment with samtools
         samtools index {output.bam_file_markDup}
         
-        rm {input.fastq1_trimmed_classified}
-        rm {input.fastq2_trimmed_classified}
+        {input.fastq1_trimmed_classified}
+        {input.fastq2_trimmed_classified}
         """
 
 
